@@ -30,6 +30,15 @@ enum
 
 	SPEC_FREEVIEW=-1,
 };
+
+enum
+{
+	CLASS_ENGINEER=0,
+	CLASS_MEDIC,
+	CLASS_SNIPER,
+	CLASS_ASSAULT,
+	CLASS_HEAVY,
+};
 '''
 
 RawSource = '''
@@ -165,7 +174,8 @@ Objects = [
 	NetObject("ClientInfo", [
 		# 4*4 = 16 charachters
 		NetIntAny("m_Name0"), NetIntAny("m_Name1"), NetIntAny("m_Name2"),
-		NetIntAny("m_Name3"),
+		NetIntAny("m_Name3"), NetIntAny("m_Name4"), NetIntAny("m_Name5"),
+                NetIntAny("m_Name6"), NetIntAny("m_Name7"),
 
 		# 4*3 = 12 charachters
 		NetIntAny("m_Clan0"), NetIntAny("m_Clan1"), NetIntAny("m_Clan2"),

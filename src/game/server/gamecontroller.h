@@ -134,6 +134,8 @@ public:
 
 	*/
 	virtual const char *GetTeamName(int Team);
+	virtual const char *GetClassName(int Class);
+	virtual const int GetClassID(char *aClass);
 	virtual int GetAutoTeam(int NotThisID);
 	virtual bool CanJoinTeam(int Team, int NotThisID);
 	bool CheckTeamBalance();

@@ -203,6 +203,50 @@ const char *IGameController::GetTeamName(int Team)
 
 	return "spectators";
 }
+const char *IGameController::GetClassName(int Class)
+{
+	if(Class == CLASS_ENGINEER)
+	{
+		return "Engineer";
+	}
+	else if(Class == CLASS_MEDIC)
+	{
+		return "Medic";
+	}
+	else if(Class == CLASS_SNIPER)
+	{
+		return "Sniper";
+	}
+	else if(Class == CLASS_ASSAULT)
+	{
+		return "Assault";
+	}
+	else if(Class == CLASS_HEAVY)
+	{
+		return "Heavy";
+	}
+	return (char *)Class;
+}
+const int IGameController::GetClassID(char *aClass)
+{
+	if(str_comp_nocase(aClass, "engineer") == 0)
+		return 0;
+	
+	else if(str_comp_nocase(aClass, "medic") == 0)
+		return 1;
+
+	else if(str_comp_nocase(aClass, "sniper") == 0)
+		return 2;
+	
+	else if(str_comp_nocase(aClass, "assault") == 0)
+		return 3;
+	
+	else if(str_comp_nocase(aClass, "heavy") == 0)
+		return 4;
+
+	else
+		return -1;
+}
 
 static bool IsSeparator(char c) { return c == ';' || c == ' ' || c == ',' || c == '\t'; }
 

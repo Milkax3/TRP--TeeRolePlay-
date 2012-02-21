@@ -8,6 +8,7 @@
 #include "character.h"
 #include "laser.h"
 #include "projectile.h"
+#include "rocket.h"
 
 //input count
 struct CInputCount
@@ -378,24 +379,51 @@ void CCharacter::FireWeapon()
 
 		case WEAPON_GRENADE:
 		{
-			CProjectile *pProj = new CProjectile(GameWorld(), WEAPON_GRENADE,
+			if(m_pPlayer->m_ClassNew == CLASS_HEAVY)
+			{
+				CRocket *pRocket = new CRocket(GameWorld(),
+					m_pPlayer->GetCID(),
+					ProjStartPos,
+					Direction,
+					(int)(Server()->TickSpeed()*GameServer()->Tuning()->m_GrenadeLifetime),
+					1,
+					true,
+					0,
+					SOUND_GRENADE_EXPLODE,
+					WEAPON_GRENADE);
+
+				CNetObj_Projectile p;
+				pRocket->FillInfo(&p);
+
+				CMsgPacker Msg(NETMSGTYPE_SV_EXTRAPROJECTILE);
+				Msg.AddInt(1);
+				for(unsigned i = 0; i < sizeof(CNetObj_Projectile)/sizeof(int); i++)
+					Msg.AddInt(((int *)&p)[i]);
+
+				Server()->SendMsg(&Msg, 0, m_pPlayer->GetCID());
+				GameServer()->CreateSound(m_Pos, SOUND_GRENADE_FIRE);
+			}
+			else
+			{
+				CProjectile *pProj = new CProjectile(GameWorld(), WEAPON_GRENADE,
 				m_pPlayer->GetCID(),
 				ProjStartPos,
 				Direction,
 				(int)(Server()->TickSpeed()*GameServer()->Tuning()->m_GrenadeLifetime),
 				1, true, 0, SOUND_GRENADE_EXPLODE, WEAPON_GRENADE);
 
-			// pack the Projectile and send it to the client Directly
-			CNetObj_Projectile p;
-			pProj->FillInfo(&p);
+				// pack the Projectile and send it to the client Directly
+				CNetObj_Projectile p;
+				pProj->FillInfo(&p);
 
-			CMsgPacker Msg(NETMSGTYPE_SV_EXTRAPROJECTILE);
-			Msg.AddInt(1);
-			for(unsigned i = 0; i < sizeof(CNetObj_Projectile)/sizeof(int); i++)
-				Msg.AddInt(((int *)&p)[i]);
-			Server()->SendMsg(&Msg, 0, m_pPlayer->GetCID());
+				CMsgPacker Msg(NETMSGTYPE_SV_EXTRAPROJECTILE);
+				Msg.AddInt(1);
+				for(unsigned i = 0; i < sizeof(CNetObj_Projectile)/sizeof(int); i++)
+					Msg.AddInt(((int *)&p)[i]);
+				Server()->SendMsg(&Msg, 0, m_pPlayer->GetCID());
 
-			GameServer()->CreateSound(m_Pos, SOUND_GRENADE_FIRE);
+				GameServer()->CreateSound(m_Pos, SOUND_GRENADE_FIRE);
+			}
 		} break;
 
 		case WEAPON_RIFLE:
@@ -671,6 +699,9 @@ bool CCharacter::IncreaseArmor(int Amount)
 
 void CCharacter::Die(int Killer, int Weapon)
 {
+	if(!m_Alive)
+		return;
+	
 	// we got to wait 0.5 secs before respawning
 	m_pPlayer->m_RespawnTick = Server()->Tick()+Server()->TickSpeed()/2;
 	int ModeSpecial = GameServer()->m_pController->OnCharacterDeath(this, GameServer()->m_apPlayers[Killer], Weapon);
@@ -699,14 +730,45 @@ void CCharacter::Die(int Killer, int Weapon)
 	GameServer()->m_World.RemoveEntity(this);
 	GameServer()->m_World.m_Core.m_apCharacters[m_pPlayer->GetCID()] = 0;
 	GameServer()->CreateDeath(m_Pos, m_pPlayer->GetCID());
+
+	if(m_pPlayer->m_Class != m_pPlayer->m_ClassNew)
+	{
+		m_pPlayer->m_ClassNew = m_pPlayer->m_Class;
+		char aBuf[128];
+		str_format(aBuf, sizeof(aBuf), "You will respawn as %s", GameServer()->m_pController->GetClassName(m_pPlayer->m_ClassNew));
+		GameServer()->SendChatTarget(m_pPlayer->GetCID(), aBuf);
+		m_pPlayer->UpdateName();
+	}
 }
 
 bool CCharacter::TakeDamage(vec2 Force, int Dmg, int From, int Weapon)
 {
 	m_Core.m_Vel += Force;
 
-	if(GameServer()->m_pController->IsFriendlyFire(m_pPlayer->GetCID(), From) && !g_Config.m_SvTeamdamage)
-		return false;
+	if(GameServer()->m_pController->IsFriendlyFire(m_pPlayer->GetCID(), From) || From == GetPlayer()->GetCID())
+	{
+		if(GameServer()->m_apPlayers[From] && GameServer()->m_apPlayers[From]->m_ClassNew == CLASS_MEDIC && (Weapon == WEAPON_GRENADE || Weapon == WEAPON_RIFLE || Weapon == WEAPON_HAMMER))
+		{
+			if(Weapon == WEAPON_RIFLE)
+			{
+				IncreaseArmor(max(1, Dmg/2));
+			}
+			else if(Weapon == WEAPON_GRENADE)
+			{
+				IncreaseHealth(max(1, Dmg));
+			}
+			else
+			{
+				IncreaseArmor(Dmg);
+				IncreaseArmor(Dmg);
+			}
+			return false;
+		}
+		else
+		{
+			return false;
+		}
+	}
 
 	// m_pPlayer only inflicts half damage on self
 	if(From == m_pPlayer->GetCID())

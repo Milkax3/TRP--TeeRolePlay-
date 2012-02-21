@@ -228,7 +228,7 @@ int CServer::TrySetClientName(int ClientID, const char *pName)
 
 
 void CServer::SetClientName(int ClientID, const char *pName)
-{
+{	
 	if(ClientID < 0 || ClientID >= MAX_CLIENTS || m_aClients[ClientID].m_State < CClient::STATE_READY)
 		return;
 

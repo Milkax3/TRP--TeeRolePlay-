@@ -35,7 +35,18 @@ public:
 	void KillCharacter(int Weapon = WEAPON_GAME);
 	CCharacter *GetCharacter();
 
-	//---------------------------------------------------------
+	//			TRP
+	//	-------------------------------------------------------
+	//
+
+	int m_Class;
+	int m_ClassNew;
+	char m_OriginalName[MAX_NAME_LENGTH];
+
+	void UpdateName();
+
+	//
+	// --------------------------------------------------------
 	// this is used for snapping so we know how we can clip the view for the player
 	vec2 m_ViewPos;
 
@@ -71,7 +82,7 @@ public:
 		int m_ColorBody;
 		int m_ColorFeet;
 	} m_TeeInfos;
-
+	
 	int m_RespawnTick;
 	int m_DieTick;
 	int m_Score;

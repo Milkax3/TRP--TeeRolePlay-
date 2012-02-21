@@ -78,6 +78,7 @@ void CScoreboard::RenderGoals(float x, float y, float w)
 			TextRender()->Text(0, x+w-tw-10.0f, y, 20.0f, aBuf, -1);
 		}
 	}
+	TextRender()->Text(0, 10.0f, 1.0f, 20.0f, "Copyright (c) 2012 - TRP", -1);
 }
 
 void CScoreboard::RenderSpectators(float x, float y, float w)

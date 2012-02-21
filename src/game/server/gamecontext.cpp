@@ -14,6 +14,9 @@
 #include "gamemodes/ctf.h"
 #include "gamemodes/mod.h"
 
+#include <string.h>
+#include <stdio.h>
+
 enum
 {
 	RESET,
@@ -512,6 +515,9 @@ void CGameContext::OnClientEnter(int ClientID)
 	str_format(aBuf, sizeof(aBuf), "'%s' entered and joined the %s", Server()->ClientName(ClientID), m_pController->GetTeamName(m_apPlayers[ClientID]->GetTeam()));
 	SendChat(-1, CGameContext::CHAT_ALL, aBuf);
 
+	str_copy(m_apPlayers[ClientID]->m_OriginalName, Server()->ClientName(ClientID), sizeof(m_apPlayers[ClientID]->m_OriginalName));
+	m_apPlayers[ClientID]->UpdateName();
+
 	str_format(aBuf, sizeof(aBuf), "team_join player='%d:%s' team=%d", ClientID, Server()->ClientName(ClientID), m_apPlayers[ClientID]->GetTeam());
 	Console()->Print(IConsole::OUTPUT_LEVEL_DEBUG, "game", aBuf);
 
@@ -601,7 +607,63 @@ void CGameContext::OnMessage(int MsgID, CUnpacker *pUnpacker, int ClientID)
 			pMessage++;
 		}
 
-		SendChat(ClientID, Team, pMsg->m_pMessage);
+		if(pMsg->m_pMessage[0] == '/')
+		{
+			if(!strncmp(pMsg->m_pMessage, "/class", 6))
+			{
+				char aClass[32];
+				if(sscanf(pMsg->m_pMessage, "/class %s", aClass) != 1)
+				{
+					SendChatTarget(ClientID, "Please stick to the given structure:");
+					SendChatTarget(ClientID, "/class <class name>");
+				}
+				else
+				{
+					if(str_comp_nocase(aClass, "current") == 0)
+					{
+						char aBuf[128];
+						str_format(aBuf, sizeof(aBuf), "Current Class is %s", m_pController->GetClassName(pPlayer->m_Class));
+						SendChatTarget(ClientID, aBuf);
+						return;
+					}
+					int newId = m_pController->GetClassID(aClass);
+					if(newId != -1)
+					{
+						if(pPlayer->m_Class == newId)
+						{
+							char aBuf[128];
+							str_format(aBuf, sizeof(aBuf), "You are already %s", m_pController->GetClassName(pPlayer->m_Class));
+							SendChatTarget(ClientID, aBuf);
+						}
+						else
+						{
+							pPlayer->m_Class = newId;
+							char aBuf[128];
+							str_format(aBuf, sizeof(aBuf), "'%s' changed class to %s. Respawn for effects", pPlayer->m_OriginalName, m_pController->GetClassName(pPlayer->m_Class));
+							SendChat(-1, CGameContext::CHAT_ALL, aBuf);
+						}
+					}
+					else
+					{
+						SendChatTarget(ClientID, "Unknown class. Available classes:");
+						SendChatTarget(ClientID, "- Engineer");
+						SendChatTarget(ClientID, "- Medic");
+						SendChatTarget(ClientID, "- Sniper");
+						SendChatTarget(ClientID, "- Assault");
+						SendChatTarget(ClientID, "- Heavy");
+						SendChatTarget(ClientID, "- Current (to see what you are)");
+					}
+				}
+			}
+			else
+			{
+				SendChatTarget(ClientID, "Command not found");
+			}
+		}
+		else
+		{
+			SendChat(ClientID, Team, pMsg->m_pMessage);
+		}
 	}
 	else if(MsgID == NETMSGTYPE_CL_CALLVOTE)
 	{
@@ -935,7 +997,11 @@ void CGameContext::OnMessage(int MsgID, CUnpacker *pUnpacker, int ClientID)
 			char aChatText[256];
 			str_format(aChatText, sizeof(aChatText), "'%s' changed name to '%s'", aOldName, Server()->ClientName(ClientID));
 			SendChat(-1, CGameContext::CHAT_ALL, aChatText);
+
+			str_copy(pPlayer->m_OriginalName, Server()->ClientName(ClientID), sizeof(pPlayer->m_OriginalName));
+			pPlayer->UpdateName();
 		}
+
 		Server()->SetClientClan(ClientID, pMsg->m_pClan);
 		Server()->SetClientCountry(ClientID, pMsg->m_Country);
 		str_copy(pPlayer->m_TeeInfos.m_SkinName, pMsg->m_pSkin, sizeof(pPlayer->m_TeeInfos.m_SkinName));
