@@ -31,6 +31,8 @@ bool CLaser::HitCharacter(vec2 From, vec2 To)
 	m_Energy = -1;
 	if(GameServer()->m_apPlayers[m_Owner]->m_ClassNew == CLASS_SNIPER)
 		Hit->TakeDamage(vec2(0.f, 0.f), 25, m_Owner, WEAPON_RIFLE);
+	else if(GameServer()->m_apPlayers[m_Owner]->m_ClassNew == CLASS_HEAVY)
+		Hit->TakeDamage(vec2(0.f, 0.f), 1, m_Owner, WEAPON_RIFLE);
 	else
 		Hit->TakeDamage(vec2(0.f, 0.f), GameServer()->Tuning()->m_LaserDamage, m_Owner, WEAPON_RIFLE);
 	return true;

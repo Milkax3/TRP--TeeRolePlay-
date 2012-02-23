@@ -448,11 +448,21 @@ void CCharacter::FireWeapon()
 
 	m_AttackTick = Server()->Tick();
 
-	if(m_aWeapons[m_ActiveWeapon].m_Ammo > 0) // -1 == unlimited
+	if(m_aWeapons[m_ActiveWeapon].m_Ammo > 0)
 		m_aWeapons[m_ActiveWeapon].m_Ammo--;
 
 	if(!m_ReloadTimer)
 		m_ReloadTimer = g_pData->m_Weapons.m_aId[m_ActiveWeapon].m_Firedelay * Server()->TickSpeed() / 1000;
+	
+	
+	if(m_pPlayer->m_ClassNew == CLASS_HEAVY && m_ActiveWeapon == WEAPON_RIFLE)
+		m_ReloadTimer = g_pData->m_Weapons.m_aId[m_ActiveWeapon].m_Firedelay * Server()->TickSpeed() / 12500;
+	
+	if(m_pPlayer->m_ClassNew == CLASS_ASSAULT && m_ActiveWeapon == WEAPON_SHOTGUN)
+		m_ReloadTimer = g_pData->m_Weapons.m_aId[m_ActiveWeapon].m_Firedelay * Server()->TickSpeed() / 3200;
+
+	if(m_pPlayer->m_ClassNew == CLASS_ASSAULT && m_ActiveWeapon == WEAPON_GUN)
+		m_ReloadTimer = g_pData->m_Weapons.m_aId[m_ActiveWeapon].m_Firedelay * Server()->TickSpeed() / 1450;
 }
 
 void CCharacter::HandleWeapons()
@@ -501,7 +511,20 @@ bool CCharacter::GiveWeapon(int Weapon, int Ammo)
 	if(m_aWeapons[Weapon].m_Ammo < g_pData->m_Weapons.m_aId[Weapon].m_Maxammo || !m_aWeapons[Weapon].m_Got)
 	{
 		m_aWeapons[Weapon].m_Got = true;
-		m_aWeapons[Weapon].m_Ammo = min(g_pData->m_Weapons.m_aId[Weapon].m_Maxammo, Ammo);
+		
+		if(Weapon == WEAPON_RIFLE && m_pPlayer->m_ClassNew == CLASS_HEAVY) //infinite laser for heavy
+			m_aWeapons[Weapon].m_Ammo = -1;
+		else if(Weapon == WEAPON_GUN && m_pPlayer->m_ClassNew == CLASS_ASSAULT) //infinite gun for assault
+			m_aWeapons[Weapon].m_Ammo = -1;
+		else if(Weapon == WEAPON_SHOTGUN && m_pPlayer->m_ClassNew == CLASS_ENGINEER) //infinite shotgun for engineer
+			m_aWeapons[Weapon].m_Ammo = -1;
+		else if(Weapon == WEAPON_RIFLE && m_pPlayer->m_ClassNew == CLASS_SNIPER) //infinite laser for sniper
+			m_aWeapons[Weapon].m_Ammo = -1;
+		else if(Weapon == WEAPON_RIFLE && m_pPlayer->m_ClassNew == CLASS_MEDIC) //infinite laser for medic (heal)
+			m_aWeapons[Weapon].m_Ammo = -1;
+		else
+			m_aWeapons[Weapon].m_Ammo = min(g_pData->m_Weapons.m_aId[Weapon].m_Maxammo, Ammo);
+		
 		return true;
 	}
 	return false;
