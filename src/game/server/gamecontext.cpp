@@ -14,8 +14,11 @@
 #include "gamemodes/ctf.h"
 #include "gamemodes/mod.h"
 
+#include <game/server/entity.h>
+
 #include <string.h>
 #include <stdio.h>
+
 
 enum
 {

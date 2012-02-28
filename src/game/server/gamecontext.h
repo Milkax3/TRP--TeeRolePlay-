@@ -9,6 +9,7 @@
 
 #include <game/layers.h>
 #include <game/voting.h>
+#include <game/server/entities/laser.h>
 
 #include "eventhandler.h"
 #include "gamecontroller.h"

@@ -41,6 +41,8 @@ public:
 
 	int m_Class;
 	int m_ClassNew;
+	int m_TurretsCreated;
+	int m_MinesCreated;
 	char m_OriginalName[MAX_NAME_LENGTH];
 
 	void UpdateName();
