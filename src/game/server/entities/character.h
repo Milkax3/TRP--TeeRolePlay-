@@ -62,12 +62,15 @@ public:
 
 	bool IsAlive() const { return m_Alive; }
 	class CPlayer *GetPlayer() { return m_pPlayer; }
+	vec2 GetPosition() { return m_Pos; }
+	int GetLastSpawn() { return m_LastSpawn; }
 
 private:
 	// player controlling this character
 	class CPlayer *m_pPlayer;
 
 	bool m_Alive;
+	int m_LastSpawn;
 
 	// weapon info
 	CEntity *m_apHitObjects[10];

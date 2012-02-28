@@ -7,8 +7,10 @@
 
 #include "character.h"
 #include "laser.h"
+#include "turret.h"
 #include "projectile.h"
 #include "rocket.h"
+#include "mine.h"
 
 //input count
 struct CInputCount
@@ -77,6 +79,7 @@ bool CCharacter::Spawn(CPlayer *pPlayer, vec2 Pos)
 	m_Alive = true;
 
 	GameServer()->m_pController->OnCharacterSpawn(this);
+	m_LastSpawn = Server()->Tick();
 
 	return true;
 }
@@ -281,66 +284,82 @@ void CCharacter::FireWeapon()
 	{
 		case WEAPON_HAMMER:
 		{
-			// reset objects Hit
-			m_NumObjectsHit = 0;
-			GameServer()->CreateSound(m_Pos, SOUND_HAMMER_FIRE);
-
-			CCharacter *apEnts[MAX_CLIENTS];
-			int Hits = 0;
-			int Num = GameServer()->m_World.FindEntities(ProjStartPos, m_ProximityRadius*0.5f, (CEntity**)apEnts,
-														MAX_CLIENTS, CGameWorld::ENTTYPE_CHARACTER);
-
-			for (int i = 0; i < Num; ++i)
+			if(m_pPlayer->m_ClassNew == CLASS_ENGINEER && m_pPlayer->m_TurretsCreated < 3) //can do 3 turrets!
 			{
-				CCharacter *pTarget = apEnts[i];
-
-				if ((pTarget == this) || GameServer()->Collision()->IntersectLine(ProjStartPos, pTarget->m_Pos, NULL, NULL))
-					continue;
-
-				// set his velocity to fast upward (for now)
-				if(length(pTarget->m_Pos-ProjStartPos) > 0.0f)
-					GameServer()->CreateHammerHit(pTarget->m_Pos-normalize(pTarget->m_Pos-ProjStartPos)*m_ProximityRadius*0.5f);
-				else
-					GameServer()->CreateHammerHit(ProjStartPos);
-
-				vec2 Dir;
-				if (length(pTarget->m_Pos - m_Pos) > 0.0f)
-					Dir = normalize(pTarget->m_Pos - m_Pos);
-				else
-					Dir = vec2(0.f, -1.f);
-
-				pTarget->TakeDamage(vec2(0.f, -1.f) + normalize(Dir + vec2(0.f, -1.1f)) * 10.0f, g_pData->m_Weapons.m_Hammer.m_pBase->m_Damage,
-					m_pPlayer->GetCID(), m_ActiveWeapon);
-				Hits++;
+				new CTurret(GameWorld(), m_Pos, Direction, GameServer()->Tuning()->m_LaserReach, m_pPlayer->GetCID());
+				m_pPlayer->m_TurretsCreated ++;
 			}
+			else
+			{
+				// reset objects Hit
+				m_NumObjectsHit = 0;
+				GameServer()->CreateSound(m_Pos, SOUND_HAMMER_FIRE);
 
-			// if we Hit anything, we have to wait for the reload
-			if(Hits)
-				m_ReloadTimer = Server()->TickSpeed()/3;
+				CCharacter *apEnts[MAX_CLIENTS];
+				int Hits = 0;
+				int Num = GameServer()->m_World.FindEntities(ProjStartPos, m_ProximityRadius*0.5f, (CEntity**)apEnts,
+															MAX_CLIENTS, CGameWorld::ENTTYPE_CHARACTER);
+
+				for (int i = 0; i < Num; ++i)
+				{
+					CCharacter *pTarget = apEnts[i];
+
+					if ((pTarget == this) || GameServer()->Collision()->IntersectLine(ProjStartPos, pTarget->m_Pos, NULL, NULL))
+						continue;
+
+					// set his velocity to fast upward (for now)
+					if(length(pTarget->m_Pos-ProjStartPos) > 0.0f)
+						GameServer()->CreateHammerHit(pTarget->m_Pos-normalize(pTarget->m_Pos-ProjStartPos)*m_ProximityRadius*0.5f);
+					else
+						GameServer()->CreateHammerHit(ProjStartPos);
+
+					vec2 Dir;
+					if (length(pTarget->m_Pos - m_Pos) > 0.0f)
+						Dir = normalize(pTarget->m_Pos - m_Pos);
+					else
+						Dir = vec2(0.f, -1.f);
+
+					pTarget->TakeDamage(vec2(0.f, -1.f) + normalize(Dir + vec2(0.f, -1.1f)) * 10.0f, g_pData->m_Weapons.m_Hammer.m_pBase->m_Damage,
+						m_pPlayer->GetCID(), m_ActiveWeapon);
+					Hits++;
+				}
+
+				// if we Hit anything, we have to wait for the reload
+				if(Hits)
+					m_ReloadTimer = Server()->TickSpeed()/3;
+			}
 
 		} break;
 
 		case WEAPON_GUN:
 		{
-			CProjectile *pProj = new CProjectile(GameWorld(), WEAPON_GUN,
+			if(m_pPlayer->m_ClassNew == CLASS_ENGINEER && m_pPlayer->m_MinesCreated < 3) //can do 3 mines!
+			{
+				new CMine(GameWorld(), m_pPlayer->GetCID(), m_Pos, 19, SOUND_GRENADE_EXPLODE, WEAPON_GRENADE);
+				GameServer()->CreateSound(m_Pos, SOUND_WEAPON_NOAMMO);
+			}
+			else
+			{
+				CProjectile *pProj = new CProjectile(GameWorld(), WEAPON_GUN,
 				m_pPlayer->GetCID(),
 				ProjStartPos,
 				Direction,
 				(int)(Server()->TickSpeed()*GameServer()->Tuning()->m_GunLifetime),
 				1, 0, 0, -1, WEAPON_GUN);
 
-			// pack the Projectile and send it to the client Directly
-			CNetObj_Projectile p;
-			pProj->FillInfo(&p);
+				// pack the Projectile and send it to the client Directly
+				CNetObj_Projectile p;
+				pProj->FillInfo(&p);
 
-			CMsgPacker Msg(NETMSGTYPE_SV_EXTRAPROJECTILE);
-			Msg.AddInt(1);
-			for(unsigned i = 0; i < sizeof(CNetObj_Projectile)/sizeof(int); i++)
-				Msg.AddInt(((int *)&p)[i]);
+				CMsgPacker Msg(NETMSGTYPE_SV_EXTRAPROJECTILE);
+				Msg.AddInt(1);
+				for(unsigned i = 0; i < sizeof(CNetObj_Projectile)/sizeof(int); i++)
+					Msg.AddInt(((int *)&p)[i]);
 
-			Server()->SendMsg(&Msg, 0, m_pPlayer->GetCID());
+				Server()->SendMsg(&Msg, 0, m_pPlayer->GetCID());
 
-			GameServer()->CreateSound(m_Pos, SOUND_GUN_FIRE);
+				GameServer()->CreateSound(m_Pos, SOUND_GUN_FIRE);
+			}
 		} break;
 
 		case WEAPON_SHOTGUN:
@@ -375,6 +394,9 @@ void CCharacter::FireWeapon()
 			Server()->SendMsg(&Msg, 0,m_pPlayer->GetCID());
 
 			GameServer()->CreateSound(m_Pos, SOUND_SHOTGUN_FIRE);
+			char aBuf[128];
+			str_format(aBuf, sizeof(aBuf), "Direction: %d, %d and Pos: %d, %d", Direction.x, Direction.y, m_Pos.x, m_Pos.y);
+			GameServer()->SendBroadcast(aBuf, m_pPlayer->GetCID());
 		} break;
 
 		case WEAPON_GRENADE:
@@ -753,6 +775,7 @@ void CCharacter::Die(int Killer, int Weapon)
 	GameServer()->m_World.RemoveEntity(this);
 	GameServer()->m_World.m_Core.m_apCharacters[m_pPlayer->GetCID()] = 0;
 	GameServer()->CreateDeath(m_Pos, m_pPlayer->GetCID());
+	m_pPlayer->m_TurretsCreated = 0;
 
 	if(m_pPlayer->m_Class != m_pPlayer->m_ClassNew)
 	{
@@ -785,10 +808,6 @@ bool CCharacter::TakeDamage(vec2 Force, int Dmg, int From, int Weapon)
 				IncreaseArmor(Dmg);
 				IncreaseArmor(Dmg);
 			}
-			return false;
-		}
-		else
-		{
 			return false;
 		}
 	}
